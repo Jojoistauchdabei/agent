@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamisches Diagramm mit Python</title>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script> <!-- Pyodide von CDN laden -->
+</head>
+<body>
+    <h1>Dynamisches Diagramm mit Python</h1>
+    <p>Hier kannst du ein Diagramm direkt im Browser generieren.</p>
+
+    <!-- Eingabefeld für Python-Code -->
+    <textarea id="python-code" style="width: 100%; height: 150px;">
+import matplotlib.pyplot as plt
+import io
+import base64
+
+# Beispiel-Daten
+x = [1, 2, 3, 4, 5]
+y = [2, 3, 5, 7, 11]
+
+# Diagramm erstellen
+plt.plot(x, y, marker="o", label="Beispiel-Werte")
+plt.title("Dynamisches Diagramm")
+plt.xlabel("X-Achse")
+plt.ylabel("Y-Achse")
+plt.legend()
+
+# Diagramm in Base64 umwandeln
+buffer = io.BytesIO()
+plt.savefig(buffer, format='png')
+buffer.seek(0)
+image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+buffer.close()
+
+# Rückgabe
+image_base64
+    </textarea>
+
+    <!-- Bereich für das generierte Diagramm -->
+    <div id="output" style="text-align:center; margin: 20px; border: 1px solid #ccc; padding: 10px;"></div>
+
+    <!-- Button zum Ausführen -->
+    <button id="run" style="padding: 10px 20px; font-size: 16px; margin-top: 10px;">Diagramm generieren</button>
+
+    <script>
+        // Pyodide laden und initialisieren
+        let pyodideReady = false;
+        let pyodide;
+
+        async function loadPyodideAndPackages() {
+            pyodide = await loadPyodide();
+            await pyodide.loadPackage(["matplotlib"]);
+            pyodideReady = true;
+            console.log("Pyodide ist bereit!");
+        }
+
+        loadPyodideAndPackages();
+
+        // Diagramm generieren
+        document.getElementById("run").addEventListener("click", async () => {
+            if (!pyodideReady) {
+                alert("Pyodide ist noch nicht bereit. Bitte warte einen Moment.");
+                return;
+            }
+
+            try {
+                // Python-Code aus dem Textbereich abrufen
+                const pythonCode = document.getElementById("python-code").value;
+
+                // Python-Code ausführen
+                const result = await pyodide.runPythonAsync(pythonCode);
+
+                // Bild anzeigen
+                const outputDiv = document.getElementById("output");
+                outputDiv.innerHTML = `<img src="data:image/png;base64,${result}" alt="Diagramm">`;
+            } catch (err) {
+                console.error(err);
+                alert("Fehler beim Generieren des Diagramms. Überprüfe den Python-Code.");
+            }
+        });
+    </script>
+</body>
+</html>

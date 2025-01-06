@@ -5,3 +5,9 @@ SpeechRecognition
 openwakeword
 pyaudio
 numpy
+transformers
+torch
+accelerate
+git+https://github.com/huggingface/diffusers
+imageio
+imageio-ffmpeg

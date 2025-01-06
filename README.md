@@ -17,6 +17,7 @@ Ein KI-gestützter Sprachassistent, der Spracheingaben verarbeitet, mit einem KI
 - Lautsprecher
 - Internetverbindung
 - API-Zugang für das KI-Modell
+- mpg321, ffmpeg muss installiert sein
 
 ## Verwendung
 
@@ -36,17 +37,6 @@ Der Assistent nutzt folgende Technologien:
 - gTTS (Google Text-to-Speech) für die Sprachausgabe
 - mpg321 für die Audiowiedergabe
 
-## Fehlerbehandlung
-
-- Bei unverständlicher Spracheingabe: "Entschuldigung, ich konnte Sie nicht verstehen"
-- Bei Problemen mit der Spracherkennung: Detaillierte Fehlermeldung wird ausgegeben
-
-## Hinweise
-
-- Stellen Sie sicher, dass Ihr Mikrofon korrekt angeschlossen und konfiguriert ist
-- Eine stabile Internetverbindung ist erforderlich
-- Die Sprachausgabe erfolgt in deutscher Sprache
-
 
 
 # KI-Model funktionen (tools.py)
@@ -55,4 +45,3 @@ Funktionen:
 - Urzeit
 - Bildgenerieren
 - tts (hörbücher, etc)
-- 
