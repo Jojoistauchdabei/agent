@@ -1,57 +1,19 @@
+import dotenv
 from openai import OpenAI
 import dotenv
 from gtts import gTTS
 import speech_recognition as sr
 import os
 import json
-from tools import tools, get_current_date, get_weather
-import openwakeword
-import pyaudio
-import numpy as np
-import time
+from tools import tools, get_current_date, get_weather, get_ip, location, crawl4ai, search_duckduckgo, search_wikipedia
 
-# API Konfiguration laden
-api_key = dotenv.get_key('.env', 'api_key')
-api_endpoint = dotenv.get_key('.env', 'api_endpoint')
+# Load environment variables
+dotenv.load_dotenv()
+api_key = os.getenv('api_key')
+api_endpoint = os.getenv('api_endpoint')
 
 def init_openai_client():
     return OpenAI(base_url=api_endpoint, api_key=api_key)
-
-def init_wake_word_detector():
-    model = openwakeword.Model(wakeword_models=["ok_google"])
-    return model
-
-def wait_for_wake_word(model):
-    print("Warte auf Aktivierung...")
-    
-    # Setup audio stream
-    audio = pyaudio.PyAudio()
-    stream = audio.open(
-        format=pyaudio.paFloat32,
-        channels=1,
-        rate=16000,
-        input=True,
-        frames_per_buffer=1024
-    )
-    
-    try:
-        while True:
-            audio_data = stream.read(1024, exception_on_overflow=False)
-            # Convert audio to numpy array
-            audio_data = np.frombuffer(audio_data, dtype=np.float32)
-            
-            # Get predictions
-            predictions = model.predict(audio_data)
-            
-            # Check if wake word detected
-            if predictions[0][0] > 0.5:  # Confidence threshold
-                print("Wake Word erkannt!")
-                break
-                
-    finally:
-        stream.stop_stream()
-        stream.close()
-        audio.terminate()
 
 def record_audio():
     r = sr.Recognizer()
@@ -64,58 +26,71 @@ def get_ai_response(client, user_input):
         model="mixtral-8x7b-32768",
         messages=[
             {
-                "role": "system", 
+                "role": "system",
                 "content": "Du bist ein hilfsbereiter Assistent. Antworte stets auf Deutsch. "
-                          "Halte dich bitte immer so kurz und präzise wie möglich. Bitte nutze keine Emojis. "
-                          "Nutze die verfügbaren Funktionen für Datum/Uhrzeit und Wetterabfragen."
+                          "Halte dich bitte immer so kurz und präzise wie möglich. Bitte nutze keine Emojis. Gebe immer genaue Informationen, es geht um die Kariere des Nutzers."
+                          "Nutze die verfügbaren Funktionen für Datum/Uhrzeit, Wetterabfragen, IP-Adressen und Standortinformationen."
             },
             {"role": "user", "content": user_input}
         ],
-        tools=tools
+        tools=tools,
+        tool_choice="auto"
     )
 
     message = response.choices[0].message
 
     # Check if the model wants to call functions
     if message.tool_calls:
-        function_responses = []
+        # Create a list to store function responses
+        function_messages = []
         
-        # Handle each tool call
         for tool_call in message.tool_calls:
             function_name = tool_call.function.name
-            function_args = json.loads(tool_call.function.arguments)
-            
-            # Call the appropriate function
-            function_response = None
+            try:
+                function_args = json.loads(tool_call.function.arguments)
+            except:
+                function_args = {}
+
+            # Execute the function
             if function_name == "get_current_date":
-                function_response = get_current_date()
+                result = get_current_date()
             elif function_name == "get_weather":
-                function_response = get_weather(**function_args)
+                result = get_weather(**function_args)
+            elif function_name == "get_ip":
+                result = get_ip()
+            elif function_name == "location":
+                result = location()
+            elif function_name == "crawl4ai":
+                result = crawl4ai()
+            elif function_name == "search_duckduckgo":
+                result = search_duckduckgo(**function_args)
+            elif function_name == "search_wikipedia":
+                result = search_wikipedia(**function_args)
+            else:
+                continue
 
-            if function_response:
-                function_responses.append({
-                    "tool_call_id": tool_call.id,
-                    "role": "tool",
-                    "name": function_name,
-                    "content": json.dumps(function_response)
-                })
+            function_messages.append({
+                "tool_call_id": tool_call.id,
+                "role": "tool",
+                "name": function_name,
+                "content": json.dumps(result)
+            })
 
-        # Get updated response with function results
-        messages = [
-            {
-                "role": "system", 
-                "content": "Du bist ein hilfsbereiter Assistent. Antworte stets auf Deutsch. "
-                          "Halte dich bitte immer so kurz und präzise wie möglich. Bitte nutze keine Emojis."
-            },
-            {"role": "user", "content": user_input},
-            message,
-            *function_responses
-        ]
-
-        response = client.chat.completions.create(
+        # Get the final response
+        second_response = client.chat.completions.create(
             model="mixtral-8x7b-32768",
-            messages=messages
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Du bist ein hilfsbereiter Assistent. Antworte stets auf Deutsch. "
+                              "Halte dich bitte immer so kurz und präzise wie möglich. Bitte nutze keine Emojis."
+                },
+                {"role": "user", "content": user_input},
+                message,
+                *function_messages
+            ]
         )
+        return second_response
 
     return response
 
@@ -125,15 +100,11 @@ def text_to_speech(text):
     os.system("mpg321 response.mp3")
 
 def main():
-    print("Initialisiere Wake Word Detector...")
-    
     client = init_openai_client()
-    wake_word_model = init_wake_word_detector()
-    
+
     while True:
-        wait_for_wake_word(wake_word_model)
         print("Ich höre zu...")
-        
+
         try:
             audio = record_audio()
             r = sr.Recognizer()
@@ -148,8 +119,8 @@ def main():
 
         except sr.UnknownValueError:
             print("Entschuldigung, ich konnte Sie nicht verstehen")
-        
-        print("Warte auf neue Aktivierung...")
+
+        print("Bereit für die nächste Eingabe...")
 
 if __name__ == "__main__":
     main()

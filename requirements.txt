@@ -1,5 +1,8 @@
 openai
+wikipedia
+crawl4ai
 python-dotenv
+datetime
 gtts
 SpeechRecognition
 openwakeword

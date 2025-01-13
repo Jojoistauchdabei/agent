@@ -18,7 +18,7 @@ Ein KI-gestützter Sprachassistent, der Spracheingaben verarbeitet, mit einem KI
 - Internetverbindung
 - API-Zugang für das KI-Modell
 - mpg321, ffmpeg muss installiert sein
-
+- crawl4ai-setup muss ausgeführt worden sein
 ## Verwendung
 
 1. Programm starten:
