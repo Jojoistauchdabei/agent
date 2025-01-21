@@ -96,8 +96,8 @@ def get_ai_response(client, user_input):
 
 def text_to_speech(text):
     tts = gTTS(text=text, lang='de')
-    tts.save("response.mp3")
-    os.system("mpg321 response.mp3")
+    tts.save("output/response.mp3")
+    os.system("mpg321 output/response.mp3")
 
 def main():
     client = init_openai_client()
