@@ -7,10 +7,10 @@ gtts
 SpeechRecognition
 openwakeword
 pyaudio
-numpy
-transformers
-torch
-accelerate
-git+https://github.com/huggingface/diffusers
-imageio
-imageio-ffmpeg
+numpy>=1.24.0
+transformers>=4.36.0
+torch>=2.1.0
+diffusers>=0.24.0
+accelerate>=0.25.0
+safetensors>=0.4.1
+Pillow>=10.1.0

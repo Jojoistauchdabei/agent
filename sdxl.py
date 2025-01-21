@@ -1,70 +1,103 @@
-from diffusers import AutoPipelineForText2Image
-import torch
 from datetime import datetime
 import os
+from pathlib import Path
+from typing import Optional
+from PIL import Image
+from diffusers import AutoPipelineForText2Image
+import torch
+
+# Constants
+DEFAULT_WIDTH = 1024
+DEFAULT_HEIGHT = 1024
+DEFAULT_STEPS = 1
+DEFAULT_GUIDANCE = 0.0
+OUTPUT_DIR = "output/generated_images/sdxl-turbo"
+MODEL_CACHE_DIR = "models/sdxl-turbo"
 
 # Global pipeline variable
 pipeline = None
 
-def initialize_pipeline(model_dir="models/sdxl-turbo"):
-    global pipeline
-    if pipeline is not None:
-        return pipeline
-        
-    os.makedirs(model_dir, exist_ok=True)
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+def get_best_device():
+    try:
+        if hasattr(torch, 'hip') and torch.hip.is_available():
+            # Force CPU for ROCm/HIP due to compatibility issues
+            print("ROCm/HIP detected")
+            return "hip", torch.float32
+        elif torch.cuda.is_available():
+            print("CUDA is available")
+            return "cuda", torch.float16
+        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            print("MPS is available")
+            return "mps", torch.float32
+    except:
+        pass
+    return "cpu", torch.float32
+
+def initialize_pipeline() -> "StableDiffusionPipeline":
+    """Initialize the SDXL Turbo pipeline."""
+    device, dtype = get_best_device()
     
-    # Check if model exists locally
     try:
         pipeline = AutoPipelineForText2Image.from_pretrained(
             "stabilityai/sdxl-turbo",
-            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-            variant="fp16" if device == "cuda" else None,
-            local_files_only=True,
-            cache_dir=model_dir
+            torch_dtype=dtype,
+            variant="fp16" if dtype == torch.float16 else None,
+            cache_dir=MODEL_CACHE_DIR
         )
-    except Exception:
-        # If local load fails, download model
+        pipeline.to(device)
+        print(f"Pipeline initialized on {device}")
+        return pipeline
+    except Exception as e:
+        print(f"Failed to initialize on {device}, falling back to CPU: {str(e)}")
+        # CPU fallback
         pipeline = AutoPipelineForText2Image.from_pretrained(
             "stabilityai/sdxl-turbo",
-            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-            variant="fp16" if device is "cuda" else None,
-            local_files_only=False,
-            cache_dir=model_dir
+            torch_dtype=torch.float32,
+            cache_dir=MODEL_CACHE_DIR
         )
-    
-    pipeline = pipeline.to(device)
-    return pipeline
+        pipeline.to("cpu")
+        return pipeline
 
-def generate_image(prompt, output_dir="output/generated_images"):
-    global pipeline
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # Initialize pipeline if not already done
-    if pipeline is None:
-        pipeline = initialize_pipeline()
-    
-    # Generate image
-    image = pipeline(
-        prompt=prompt,
-        width=512,
-        heigh=1024,
-        num_inference_steps=2,
-        guidance_scale=0.0,
-    ).images[0]
-    
-    # Sanitize prompt for filename
+def sanitize_filename(prompt: str, max_length: int = 50) -> str:
+    """Create a safe filename from the prompt."""
     safe_prompt = "".join(x for x in prompt if x.isalnum() or x.isspace())
-    safe_prompt = safe_prompt[:50].strip()  # Limit length and trim whitespace
+    return safe_prompt[:max_length].strip()
+
+def generate_image(prompt: str, output_dir: str = OUTPUT_DIR) -> str:
+    """Generate an image from a text prompt."""
+    global pipeline
     
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"sdxl_turbo_{timestamp}_{safe_prompt}.png"
-    filepath = os.path.join(output_dir, filename)
-    
-    image.save(filepath)
-    print(f"Image saved to: {filepath}")
-    return filepath
+    try:
+        if pipeline is None:
+            pipeline = initialize_pipeline()
+            
+        # Create output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Generate the image
+        output = pipeline(prompt, num_inference_steps=DEFAULT_STEPS, guidance_scale=DEFAULT_GUIDANCE)
+        
+        # Save the image
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        safe_prompt = sanitize_filename(prompt)
+        filename = f"{safe_prompt}_{timestamp}.png"
+        filepath = os.path.join(output_dir, filename)
+        
+        output.images[0].save(filepath)
+        return filepath
+        
+    except Exception as e:
+        if "cuda" in str(e).lower() and pipeline is not None:
+            print("CUDA error detected, falling back to CPU")
+            pipeline.to("cpu")
+            return generate_image(prompt, output_dir)  # Retry on CPU
+        raise RuntimeError(f"Failed to generate image: {str(e)}")
 
 if __name__ == "__main__":
-    prompt = input("Enter prompt: ")
-    generate_image(prompt)
+    try:
+        prompt = input("Enter prompt: ")
+        generate_image(prompt)
+    except KeyboardInterrupt:
+        print("\nGeneration cancelled by user")
+    except Exception as e:
+        print(f"Error: {str(e)}")

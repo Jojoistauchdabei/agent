@@ -19,6 +19,8 @@ Ein KI-gestützter Sprachassistent, der Spracheingaben verarbeitet, mit einem KI
 - API-Zugang für das KI-Modell
 - mpg321, ffmpeg muss installiert sein
 - crawl4ai-setup muss ausgeführt worden sein
+Für AMD:
+docker run -it --privileged --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --device=/dev/kfd --device=/dev/dri --group-add video --ipc=host --shm-size 24G rocm/pytorch:latest
 ## Verwendung
 
 1. Programm starten:
