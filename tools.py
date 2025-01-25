@@ -154,15 +154,29 @@ def search_duckduckgo(query):
         }
 
 import asyncio
-from crawl4ai import *
+from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
 
-async def crawl4ai():
-    async with AsyncWebCrawler() as crawler:
-        result = await crawler.arun(
-            url="https://www.nbcnews.com/business",
+async def crawl4ai(url: str):
+    """Crawl a webpage and extract content using crawl4ai."""
+    try:
+        browser_config = BrowserConfig(
+            headless=True,
+            verbose=True
         )
-        print(result.markdown)
-        return result.markdown
+        
+        run_config = CrawlerRunConfig(
+            cache_mode=CacheMode.ENABLED
+        )
+        
+        async with AsyncWebCrawler(config=browser_config) as crawler:
+            result = await crawler.arun(
+                url=url,
+                config=run_config
+            )
+            return {"content": result.markdown}
+            
+    except Exception as e:
+        return {"error": str(e)}
 
 # Define available tools/functions for the model
 tools = [
@@ -181,16 +195,20 @@ tools = [
         "type": "function",
         "function": {
             "name": "get_weather",
-            "description": "Get the current weather conditions for a location",
+            "description": "Get the current weather conditions for coordinates",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "location": {
-                        "type": "string",
-                        "description": "The city or location to get weather for"
+                    "latitude": {
+                        "type": "number",
+                        "description": "The latitude of the location"
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "description": "The longitude of the location"
                     }
                 },
-                "required": ["location"]
+                "required": ["latitude", "longitude"]
             }
         }
     },
@@ -213,27 +231,6 @@ tools = [
             "parameters": {
                 "type": "object",
                 "properties": {},
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_weather",
-            "description": "Get the current weather conditions for a location",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "latitude": {
-                        "type": "number",
-                        "description": "The latitude of the location"
-                    },
-                    "longitude": {
-                        "type": "number",
-                        "description": "The longitude of the location"
-                    }
-                },
-                "required": ["latitude", "longitude"]
             }
         }
     },
@@ -275,7 +272,7 @@ tools = [
         "type": "function",
         "function": {
             "name": "crawl4ai",
-            "description": "Crawl a website for news",
+            "description": "Crawl a webpage and extract content",
             "parameters": {
                 "type": "object",
                 "properties": {

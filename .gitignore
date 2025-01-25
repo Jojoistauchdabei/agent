@@ -3,3 +3,4 @@ response.mp3
 models
 output
 __pycache__
+.cache

@@ -12,7 +12,7 @@ Ein KI-gestützter Sprachassistent, der Spracheingaben verarbeitet, mit einem KI
 
 ## Voraussetzungen
 
-- Python 3.9
+- Python 3.10
 - Mikrofon
 - Lautsprecher
 - Internetverbindung

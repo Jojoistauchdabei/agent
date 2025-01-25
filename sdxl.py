@@ -19,10 +19,10 @@ pipeline = None
 
 def get_best_device():
     try:
-        if hasattr(torch, 'hip') and torch.hip.is_available():
-            # Force CPU for ROCm/HIP due to compatibility issues
-            print("ROCm/HIP detected")
-            return "hip", torch.float32
+        # Check for rocBLAS/HIP environment
+        if "ROCM_PATH" in os.environ or "HIP_PATH" in os.environ or hasattr(torch, 'hip'):
+            print("ROCm/HIP environment detected, forcing CPU usage")
+            return "cpu", torch.float32
         elif torch.cuda.is_available():
             print("CUDA is available")
             return "cuda", torch.float16
@@ -31,6 +31,7 @@ def get_best_device():
             return "mps", torch.float32
     except:
         pass
+    print("Using CPU backend")
     return "cpu", torch.float32
 
 def initialize_pipeline() -> "StableDiffusionPipeline":
@@ -84,6 +85,7 @@ def generate_image(prompt: str, output_dir: str = OUTPUT_DIR) -> str:
         filepath = os.path.join(output_dir, filename)
         
         output.images[0].save(filepath)
+        print(f"\nImage saved to: {filepath}")
         return filepath
         
     except Exception as e:

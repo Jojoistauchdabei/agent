@@ -5,6 +5,7 @@ from gtts import gTTS
 import speech_recognition as sr
 import os
 import json
+import asyncio
 from tools import tools, get_current_date, get_weather, get_ip, location, crawl4ai, search_duckduckgo, search_wikipedia
 
 # Load environment variables
@@ -51,23 +52,29 @@ def get_ai_response(client, user_input):
             except:
                 function_args = {}
 
-            # Execute the function
-            if function_name == "get_current_date":
-                result = get_current_date()
-            elif function_name == "get_weather":
-                result = get_weather(**function_args)
-            elif function_name == "get_ip":
-                result = get_ip()
-            elif function_name == "location":
-                result = location()
-            elif function_name == "crawl4ai":
-                result = crawl4ai()
-            elif function_name == "search_duckduckgo":
-                result = search_duckduckgo(**function_args)
-            elif function_name == "search_wikipedia":
-                result = search_wikipedia(**function_args)
-            else:
-                continue
+            try:
+                # Execute the function
+                if function_name == "get_current_date":
+                    result = get_current_date()
+                elif function_name == "get_weather":
+                    result = get_weather(**function_args)
+                elif function_name == "get_ip":
+                    result = get_ip()
+                elif function_name == "location":
+                    result = location()
+                elif function_name == "crawl4ai":
+                    if 'url' not in function_args:
+                        result = {"error": "URL parameter is required"}
+                    else:
+                        result = asyncio.run(crawl4ai(function_args['url']))
+                elif function_name == "search_duckduckgo":
+                    result = search_duckduckgo(**function_args)
+                elif function_name == "search_wikipedia":
+                    result = search_wikipedia(**function_args)
+                else:
+                    continue
+            except Exception as e:
+                result = {"error": str(e)}
 
             function_messages.append({
                 "tool_call_id": tool_call.id,
